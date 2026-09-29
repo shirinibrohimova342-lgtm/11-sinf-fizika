@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>11-sinf Fizika: Elektrostatika va Kulon qonuni</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 15px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #38bdf8;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 1000px;
+            background: #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .tabs {
+            display: flex;
+            background: #0f172a;
+            border-bottom: 2px solid #334155;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px 10px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .tab-btn.active {
+            color: #38bdf8;
+            background: #1e293b;
+            border-bottom: 3px solid #38bdf8;
+        }
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        @media (min-width: 768px) {
+            .main-content {
+                flex-direction: row;
+            }
+        }
+        canvas {
+            background: #090d16;
+            width: 100%;
+            height: 420px;
+            display: block;
+        }
+        .controls {
+            padding: 15px;
+            width: 100%;
+            max-width: 350px;
+            background: #1e293b;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border-left: 1px solid #334155;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .control-group label {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+        }
+        input[type=range], select {
+            width: 100%;
+            padding: 6px;
+            border-radius: 6px;
+            background: #334155;
+            color: white;
+            border: 1px solid #475569;
+            outline: none;
+        }
+        .btn {
+            padding: 10px;
+            background: #0284c7;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #0369a1;
+        }
+        .info-panel {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            font-size: 0.85rem;
+        }
+        .info-panel p {
+            margin-bottom: 4px;
+        }
+        .val {
+            color: #38bdf8;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>11-Sinf Fizika: Elektrostatika va Kulon Qonuni</h1>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchPlan(1)">1-REJA: Zaryad saqlanishi</button>
+            <button class="tab-btn" onclick="switchPlan(2)">2-REJA: Kulon qonuni</button>
+            <button class="tab-btn" onclick="switchPlan(3)">3-REJA: Superpozitsiya</button>
+        </div>
+
+        <div class="main-content">
+            <canvas id="simCanvas" width="650" height="420"></canvas>
+
+            <div class="controls" id="controlPanel">
+                <!-- Dinamikal ravishda JS orqali to'ldiriladi -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const controlPanel = document.getElementById('controlPanel');
+
+        let currentPlan = 1;
+        let mousePos = { x: 325, y: 210 };
+        let isHovered = false;
+
+        // Holat o'zgaruvchilari
+        let state = {
+            // Reja 1
+            q1_r1: 0,
+            q2_r1: 0,
+            electrons: [],
+            isContacting: false,
+            
+            // Reja 2 & 3
+            q1: 5,   // nC
+            q2: -5,  // nC
+            r: 5,    // cm
+            epsilon: 1, // Vakuum
+        };
+
+        // Klaviatura / Sichqoncha hodisalari
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mousePos.x = e.clientX - rect.left;
+            mousePos.y = e.clientY - rect.top;
+            isHovered = true;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isHovered = false;
+        });
+
+        function switchPlan(plan) {
+            currentPlan = plan;
+            document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+                btn.classList.toggle('active', idx + 1 === plan);
+            });
+            renderControls();
+        }
+
+        function renderControls() {
+            if (currentPlan === 1) {
+                controlPanel.innerHTML = `
+                    <div class="info-panel">
+                        <p><strong>Zaryadning saqlanish qonuni:</strong></p>
+                        <p>Q<sub>umumiy</sub> = q<sub>1</sub> + q<sub>2</sub> = <span class="val" id="q_tot">0 nC</span></p>
+                    </div>
+                    <button class="btn" onclick="rubSpheres()">Ishqalash / Kontakt</button>
+                    <button class="btn" style="background:#475569" onclick="resetPlan1()">Ajaratish va Tiklash</button>
+                    <div class="info-panel">
+                        <p>q<sub>1</sub> = <span class="val" id="val_q1_r1">0 nC</span></p>
+                        <p>q<sub>2</sub> = <span class="val" id="val_q2_r1">0 nC</span></p>
+                    </div>
+                `;
+            } else if (currentPlan === 2 || currentPlan === 3) {
+                controlPanel.innerHTML = `
+                    <div class="control-group">
+                        <label>Zaryad q₁: <span class="val" id="lbl_q1">${state.q1} nC</span></label>
+                        <input type="range" min="-10" max="10" value="${state.q1}" oninput="updateState('q1', this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Zaryad q₂: <span class="val" id="lbl_q2">${state.q2} nC</span></label>
+                        <input type="range" min="-10" max="10" value="${state.q2}" oninput="updateState('q2', this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Masofa r: <span class="val" id="lbl_r">${state.r} cm</span></label>
+                        <input type="range" min="2" max="9" value="${state.r}" oninput="updateState('r', this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Muhit (ε):</label>
+                        <select onchange="updateState('epsilon', this.value)">
+                            <option value="1" ${state.epsilon == 1 ? 'selected':''}>Vakuum (ε = 1)</option>
+                            <option value="7" ${state.epsilon == 7 ? 'selected':''}>Shisha (ε = 7)</option>
+                            <option value="81" ${state.epsilon == 81 ? 'selected':''}>Suv (ε = 81)</option>
+                        </select>
+                    </div>
+                    <div class="info-panel" id="mathOutput">
+                        <!-- JS bilan hisoblanadi -->
+                    </div>
+                `;
+            }
+        }
+
+        function updateState(key, val) {
+            state[key] = parseFloat(val);
+            if (key === 'q1') document.getElementById('lbl_q1').innerText = val + ' nC';
+            if (key === 'q2') document.getElementById('lbl_q2').innerText = val + ' nC';
+            if (key === 'r') document.getElementById('lbl_r').innerText = val + ' cm';
+        }
+
+        function rubSpheres() {
+            state.isContacting = true;
+            state.q1_r1 = 6;
+            state.q2_r1 = -6;
+            // Elektron zarrachalarni yaratish
+            state.electrons = [];
+            for (let i = 0; i < 12; i++) {
+                state.electrons.push({
+                    x: 200 + Math.random() * 40,
+                    y: 210 + (Math.random() - 0.5) * 40,
+                    targetX: 450,
+                    speed: 2 + Math.random() * 3
+                });
+            }
+        }
+
+        function resetPlan1() {
+            state.isContacting = false;
+            state.q1_r1 = 0;
+            state.q2_r1 = 0;
+            state.electrons = [];
+        }
+
+        // --- RENDER MANTIQLARI ---
+
+        function drawVector(ctx, fromX, fromY, toX, toY, color, label) {
+            const headlen = 10;
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const angle = Math.atan2(dy, dx);
+
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 3;
+
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.lineTo(toX, toY);
+            ctx.fill();
+
+            if (label) {
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(label, toX + 8, toY + 4);
+            }
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (currentPlan === 1) {
+                // --- 1-REJA ---
+                const x1 = state.isContacting ? 295 : 200;
+                const x2 = state.isContacting ? 355 : 450;
+                const y = 210;
+                const radius = 40;
+
+                // Sharcha 1
+                ctx.beginPath();
+                ctx.arc(x1, y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = state.q1_r1 > 0 ? '#ef4444' : '#3b82f6';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+
+                // Sharcha 2
+                ctx.beginPath();
+                ctx.arc(x2, y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = state.q2_r1 < 0 ? '#3b82f6' : '#ef4444';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+
+                // Yozuvlar
+                ctx.fillStyle = '#fff';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Sharcha A: ${state.q1_r1} nC`, x1, y - 55);
+                ctx.fillText(`Sharcha B: ${state.q2_r1} nC`, x2, y - 55);
+
+                // Elektronlar harakati
+                if (state.isContacting) {
+                    state.electrons.forEach(e => {
+                        ctx.beginPath();
+                        ctx.arc(e.x, e.y, 4, 0, Math.PI * 2);
+                        ctx.fillStyle = '#facc15';
+                        ctx.fill();
+
+                        if (e.x < e.targetX) {
+                            e.x += e.speed;
+                        }
+                    });
+                }
+
+                // Saqlanish UI yangilash
+                const totEl = document.getElementById('q_tot');
+                if (totEl) totEl.innerText = (state.q1_r1 + state.q2_r1) + ' nC';
+                const q1El = document.getElementById('val_q1_r1');
+                if (q1El) q1El.innerText = state.q1_r1 + ' nC';
+                const q2El = document.getElementById('val_q2_r1');
+                if (q2El) q2El.innerText = state.q2_r1 + ' nC';
+
+            } else if (currentPlan === 2 || currentPlan === 3) {
+                // --- 2 & 3-REJA ---
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const pixelDist = state.r * 35; // Masshtab (1cm = 35px)
+
+                const p1 = { x: centerX - pixelDist / 2, y: centerY };
+                const p2 = { x: centerX + pixelDist / 2, y: centerY };
+
+                // Kulon kuchi hisoblash: F = k * |q1*q2| / (eps * r^2)
+                const k = 8.99e9;
+                const q1_C = state.q1 * 1e-9;
+                const q2_C = state.q2 * 1e-9;
+                const r_m = state.r * 1e-2;
+                
+                const force = (k * Math.abs(q1_C * q2_C)) / (state.epsilon * Math.pow(r_m, 2)); // Nyuton
+
+                // Zaryadlarni chizish
+                function drawCharge(p, q, name) {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 22, 0, Math.PI * 2);
+                    ctx.fillStyle = q > 0 ? '#ef4444' : (q < 0 ? '#3b82f6' : '#64748b');
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(q > 0 ? '+' + q : q, p.x, p.y + 5);
+                    ctx.fillText(name, p.x, p.y - 30);
+                }
+
+                drawCharge(p1, state.q1, 'q₁');
+                drawCharge(p2, state.q2, 'q₂');
+
+                // Masofa chizig'i
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y + 40);
+                ctx.lineTo(p2.x, p2.y + 40);
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillText(`r = ${state.r} cm`, centerX, centerY + 55);
+
+                if (currentPlan === 2) {
+                    // KUCH VEKTORLARI
+                    const vectorScale = Math.min(Math.max(force * 1000, 20), 120); // Vizual o'lcham
+                    const isAttract = (state.q1 * state.q2) < 0;
+
+                    if (state.q1 !== 0 && state.q2 !== 0) {
+                        if (isAttract) {
+                            // Tortishish
+                            drawVector(ctx, p1.x, p1.y, p1.x + vectorScale, p1.y, '#f59e0b', 'F₁₂');
+                            drawVector(ctx, p2.x, p2.y, p2.x - vectorScale, p2.y, '#f59e0b', 'F₂₁');
+                        } else {
+                            // Itarish
+                            drawVector(ctx, p1.x, p1.y, p1.x - vectorScale, p1.y, '#f59e0b', 'F₁₂');
+                            drawVector(ctx, p2.x, p2.y, p2.x + vectorScale, p2.y, '#f59e0b', 'F₂₁');
+                        }
+                    }
+
+                    // Hisobot paneli
+                    const mathOut = document.getElementById('mathOutput');
+                    if (mathOut) {
+                        mathOut.innerHTML = `
+                            <p><strong>Kulon kuchi (F):</strong></p>
+                            <p>F = <span class="val">${force.toExponential(2)} N</span></p>
+                            <p style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">
+                                F = (k · |q₁ · q₂|) / (ε · r²)
+                            </p>
+                        `;
+                    }
+                } else if (currentPlan === 3) {
+                    // SUPERPOZITSIYA PRINSIPI (Sinov zaryadi)
+                    const testP = isHovered ? mousePos : { x: centerX, y: centerY - 90 };
+
+                    // Sinov zaryadini chizish (q0 = +1)
+                    ctx.beginPath();
+                    ctx.arc(testP.x, testP.y, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = '#10b981';
+                    ctx.fill();
+                    ctx.fillText('q₀ (+)', testP.x, testP.y - 12);
+
+                    // E1 va E2 Vektorlarini hisoblash
+                    function getEVector(fromP, q) {
+                        const dx = testP.x - fromP.x;
+                        const dy = testP.y - fromP.y;
+                        const distPx = Math.sqrt(dx * dx + dy * dy);
+                        const distM = (distPx / 35) * 1e-2;
+                        
+                        if (distM === 0) return { x: 0, y: 0 };
+
+                        const E = (k * Math.abs(q * 1e-9)) / (state.epsilon * Math.pow(distM, 2));
+                        const scale = Math.min(E * 1e-4, 80); // Vizual masshtab
+
+                        const angle = Math.atan2(dy, dx);
+                        const dir = q > 0 ? 1 : -1;
+
+                        return {
+                            x: Math.cos(angle) * scale * dir,
+                            y: Math.sin(angle) * scale * dir,
+                            magnitude: E
+                        };
+                    }
+
+                    const E1 = getEVector(p1, state.q1);
+                    const E2 = getEVector(p2, state.q2);
+
+                    const E_res = {
+                        x: E1.x + E2.x,
+                        y: E1.y + E2.y,
+                        magnitude: Math.sqrt(Math.pow(E1.magnitude, 2) + Math.pow(E2.magnitude, 2)) // Taxminiy umumiy
+                    };
+
+                    // Vektorlarni chizish
+                    drawVector(ctx, testP.x, testP.y, testP.x + E1.x, testP.y + E1.y, '#ef4444', 'E₁');
+                    drawVector(ctx, testP.x, testP.y, testP.x + E2.x, testP.y + E2.y, '#3b82f6', 'E₂');
+
+                    // Parallelogramm katakchalari
+                    ctx.beginPath();
+                    ctx.setLineDash([3, 3]);
+                    ctx.strokeStyle = '#64748b';
+                    ctx.moveTo(testP.x + E1.x, testP.y + E1.y);
+                    ctx.lineTo(testP.x + E_res.x, testP.y + E_res.y);
+                    ctx.lineTo(testP.x + E2.x, testP.y + E2.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Natijaviy vektor (E_natijaviy)
+                    drawVector(ctx, testP.x, testP.y, testP.x + E_res.x, testP.y + E_res.y, '#10b981', 'E_nat');
+
+                    // Hisobot paneli
+                    const mathOut = document.getElementById('mathOutput');
+                    if (mathOut) {
+                        mathOut.innerHTML = `
+                            <p><strong>Natijaviy Maydon (E):</strong></p>
+                            <p>E₁ = <span class="val">${E1.magnitude.toExponential(2)} N/C</span></p>
+                            <p>E₂ = <span class="val">${E2.magnitude.toExponential(2)} N/C</span></p>
+                            <p><strong>E<sub>natijaviy</sub> = E₁ + E₂</strong></p>
+                        `;
+                    }
+                }
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // Dastlabki ishga tushirish
+        renderControls();
+        render();
+    </script>
+</body>
+</html>
